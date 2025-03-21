@@ -13,10 +13,10 @@ const updateTaskSchema = z.object({
 });
 
 // GET /api/tasks/:id
-export async function GET(request: NextRequest, context: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: { [key: string]: string | string[] } }) {
   try {
     const user = JSON.parse(request.headers.get("user") || "{}");
-    const taskId = context.params.id;
+    const taskId = Array.isArray(context.params.id) ? context.params.id[0] : context.params.id;
 
     // Build the query
     let query = supabase.from("tasks").select("*").eq("id", taskId);
@@ -43,11 +43,11 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 }
 
 // PUT /api/tasks/:id
-export async function PUT(request: NextRequest, context: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: { [key: string]: string | string[] } }) {
   try {
     const body = await request.json();
     const user = JSON.parse(request.headers.get("user") || "{}");
-    const taskId = context.params.id;
+    const taskId = Array.isArray(context.params.id) ? context.params.id[0] : context.params.id;
 
     // Build the query to check task existence and ownership
     let query = supabase.from("tasks").select("id").eq("id", taskId);
@@ -91,10 +91,10 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
 }
 
 // DELETE /api/tasks/:id
-export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: { [key: string]: string | string[] } }) {
   try {
     const user = JSON.parse(request.headers.get("user") || "{}");
-    const taskId = context.params.id;
+    const taskId = Array.isArray(context.params.id) ? context.params.id[0] : context.params.id;
 
     // Build the query to check task existence and ownership
     let query = supabase.from("tasks").select("id").eq("id", taskId);
