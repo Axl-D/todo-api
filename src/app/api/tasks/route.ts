@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
+import { NextRequest } from "next/server";
 
 // Validation schema for task creation
 const createTaskSchema = z.object({
@@ -12,7 +13,7 @@ const createTaskSchema = z.object({
 });
 
 // GET /api/tasks
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
 }
 
 // POST /api/tasks
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const user = JSON.parse(request.headers.get("user") || "{}");

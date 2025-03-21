@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
+import { NextRequest } from "next/server";
 
 // Validation schema for task updates
 const updateTaskSchema = z.object({
@@ -12,7 +13,7 @@ const updateTaskSchema = z.object({
 });
 
 // GET /api/tasks/:id
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = JSON.parse(request.headers.get("user") || "{}");
     const taskId = params.id;
@@ -42,7 +43,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 // PUT /api/tasks/:id
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await request.json();
     const user = JSON.parse(request.headers.get("user") || "{}");
@@ -90,7 +91,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE /api/tasks/:id
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = JSON.parse(request.headers.get("user") || "{}");
     const taskId = params.id;
