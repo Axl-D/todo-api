@@ -35,7 +35,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
 
     return NextResponse.json(task);
-  } catch (error) {
+  } catch (err) {
+    console.error("Error in GET /api/tasks/:id:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -79,10 +80,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (updateError) throw updateError;
 
     return NextResponse.json(task);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.errors }, { status: 400 });
     }
+    console.error("Error in PUT /api/tasks/:id:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -115,7 +117,8 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     if (deleteError) throw deleteError;
 
     return NextResponse.json({ message: "Task deleted successfully" });
-  } catch (error) {
+  } catch (err) {
+    console.error("Error in DELETE /api/tasks/:id:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

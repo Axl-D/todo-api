@@ -61,7 +61,8 @@ export async function GET(request: Request) {
         totalPages: Math.ceil((count || 0) / limit),
       },
     });
-  } catch (error) {
+  } catch (err) {
+    console.error("Error in GET /api/tasks:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -88,10 +89,11 @@ export async function POST(request: Request) {
     if (createError) throw createError;
 
     return NextResponse.json(task, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.errors }, { status: 400 });
     }
+    console.error("Error in POST /api/tasks:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-`# Todo API
+Todo API
 
 A Next.js API for managing tasks with authentication and Supabase integration.
 
