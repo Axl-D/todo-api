@@ -25,13 +25,13 @@ export async function GET(request: Request, { params }: { params: { id: string }
       query = query.eq("created_by", user.userId);
     }
 
-    const { data: task, error } = await query.single();
+    const { data: task, error: fetchError } = await query.single();
 
-    if (error) {
-      if (error.code === "PGRST116") {
+    if (fetchError) {
+      if (fetchError.code === "PGRST116") {
         return NextResponse.json({ error: "Task not found" }, { status: 404 });
       }
-      throw error;
+      throw fetchError;
     }
 
     return NextResponse.json(task);
@@ -55,7 +55,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       query = query.eq("created_by", user.userId);
     }
 
-    const { data: existingTask, error: fetchError } = await query.single();
+    const { error: fetchError } = await query.single();
 
     if (fetchError) {
       if (fetchError.code === "PGRST116") {
@@ -66,7 +66,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     const taskData = updateTaskSchema.parse(body);
 
-    const { data: task, error } = await supabase
+    const { data: task, error: updateError } = await supabase
       .from("tasks")
       .update({
         ...taskData,
@@ -76,7 +76,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       .select()
       .single();
 
-    if (error) throw error;
+    if (updateError) throw updateError;
 
     return NextResponse.json(task);
   } catch (error) {
@@ -101,7 +101,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       query = query.eq("created_by", user.userId);
     }
 
-    const { data: existingTask, error: fetchError } = await query.single();
+    const { error: fetchError } = await query.single();
 
     if (fetchError) {
       if (fetchError.code === "PGRST116") {
@@ -110,9 +110,9 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       throw fetchError;
     }
 
-    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+    const { error: deleteError } = await supabase.from("tasks").delete().eq("id", taskId);
 
-    if (error) throw error;
+    if (deleteError) throw deleteError;
 
     return NextResponse.json({ message: "Task deleted successfully" });
   } catch (error) {

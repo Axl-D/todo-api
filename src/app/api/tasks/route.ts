@@ -48,9 +48,9 @@ export async function GET(request: Request) {
     const end = start + limit - 1;
     query = query.range(start, end).order("created_at", { ascending: false });
 
-    const { data: tasks, error, count } = await query;
+    const { data: tasks, error: fetchError, count } = await query;
 
-    if (error) throw error;
+    if (fetchError) throw fetchError;
 
     return NextResponse.json({
       tasks,
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
     const taskData = createTaskSchema.parse(body);
 
-    const { data: task, error } = await supabase
+    const { data: task, error: createError } = await supabase
       .from("tasks")
       .insert([
         {
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (createError) throw createError;
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
