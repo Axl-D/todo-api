@@ -24,14 +24,15 @@ export async function GET(request: NextRequest) {
 
     // Get the authenticated user from the middleware
     const user = JSON.parse(request.headers.get("user") || "{}");
+    console.log("Authenticated user in GET:", user); // Debug log
 
-    // Build the query
-    let query = supabase.from("tasks").select("*", { count: "exact" });
-
-    // Only filter by created_by if user is not an admin
-    if (user.role !== "admin") {
-      query = query.eq("created_by", user.userId);
+    if (!user.userId) {
+      console.log("No user ID found in request headers"); // Debug log
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Build the query - RLS will handle access control
+    let query = supabase.from("tasks").select("*", { count: "exact" });
 
     // Apply filters
     if (status) {
@@ -51,7 +52,10 @@ export async function GET(request: NextRequest) {
 
     const { data: tasks, error: fetchError, count } = await query;
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error("Error fetching tasks:", fetchError); // Debug log
+      throw fetchError;
+    }
 
     return NextResponse.json({
       tasks,
@@ -64,37 +68,59 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     console.error("Error in GET /api/tasks:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error", details: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }
 
 // POST /api/tasks
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Get the authenticated user from the middleware
     const user = JSON.parse(request.headers.get("user") || "{}");
+    console.log("Authenticated user in POST:", user); // Debug log
+
+    if (!user.userId) {
+      console.log("No user ID found in request headers"); // Debug log
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    console.log("Request body:", body); // Debug log
 
     const taskData = createTaskSchema.parse(body);
+    console.log("Validated task data:", taskData); // Debug log
 
-    const { data: task, error: createError } = await supabase
-      .from("tasks")
-      .insert([
-        {
-          ...taskData,
-          created_by: user.userId,
-        },
-      ])
-      .select()
-      .single();
+    // Insert the task - created_by will be set automatically by the database
+    const { data: task, error: createError } = await supabase.from("tasks").insert([taskData]).select().single();
 
-    if (createError) throw createError;
+    if (createError) {
+      console.error("Error creating task:", createError); // Debug log
+      console.error("Error details:", {
+        code: createError.code,
+        message: createError.message,
+        details: createError.details,
+        hint: createError.hint,
+      });
+      throw createError;
+    }
 
     return NextResponse.json(task, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {
+      console.error("Validation error:", err.errors); // Debug log
       return NextResponse.json({ error: err.errors }, { status: 400 });
     }
     console.error("Error in POST /api/tasks:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details: err instanceof Error ? err.message : "Unknown error",
+        stack: err instanceof Error ? err.stack : undefined,
+      },
+      { status: 500 }
+    );
   }
 }

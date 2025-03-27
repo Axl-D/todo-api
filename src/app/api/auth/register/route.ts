@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { hash } from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 
 const registerSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(6),
   first_name: z.string().min(1),
   last_name: z.string().min(1),
-  password: z.string().min(6),
 });
 
 export async function POST(request: Request) {
@@ -15,41 +14,42 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, password, first_name, last_name } = registerSchema.parse(body);
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase.from("users").select("id").eq("email", email).single();
-
-    if (existingUser) {
-      return NextResponse.json({ error: "User already exists" }, { status: 400 });
-    }
-
-    // Hash password
-    const hashedPassword = await hash(password, 10);
-
-    // Create user in Supabase
-    const { data: user, error } = await supabase
-      .from("users")
-      .insert([
-        {
-          email,
-          password: hashedPassword,
-          role: "user",
+    // Create user with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        data: {
           first_name,
           last_name,
         },
-      ])
-      .select()
-      .single();
+      },
+    });
 
-    if (error) throw error;
-
-    return NextResponse.json(
-      { message: "User created successfully", user: { id: user.id, email: user.email } },
-      { status: 201 }
-    );
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+    if (authError) {
+      console.error("Auth error:", authError);
+      return NextResponse.json({ error: "Failed to create user", details: authError.message }, { status: 400 });
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+
+    // Return success without sensitive data
+    return NextResponse.json({
+      message: "User registered successfully",
+      user: {
+        id: authData.user?.id,
+        email: authData.user?.email,
+        first_name: authData.user?.user_metadata?.first_name,
+        last_name: authData.user?.user_metadata?.last_name,
+      },
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.errors }, { status: 400 });
+    }
+    console.error("Error in register:", err);
+    return NextResponse.json(
+      { error: "Internal server error", details: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }

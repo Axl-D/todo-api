@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { compare } from "bcryptjs";
-import { sign } from "jsonwebtoken";
 import { supabase } from "@/lib/supabase";
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string(),
+  password: z.string().min(1),
 });
 
 export async function POST(request: Request) {
@@ -14,38 +12,60 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, password } = loginSchema.parse(body);
 
-    // Get user from Supabase
-    const { data: user, error } = await supabase.from("users").select("*").eq("email", email).single();
+    console.log("Login attempt for email:", email); // Debug log
 
-    if (error || !user) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
-    }
-
-    // Verify password
-    const isValidPassword = await compare(password, user.password);
-    if (!isValidPassword) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
-    }
-
-    // Generate JWT token
-    const token = sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET!, {
-      expiresIn: "1d",
+    // Sign in with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
 
-    return NextResponse.json({
-      token,
+    if (authError) {
+      console.error("Auth error:", authError); // Debug log
+      return NextResponse.json({ error: "Invalid credentials", details: authError.message }, { status: 401 });
+    }
+
+    if (!authData.session) {
+      console.error("No session returned from auth"); // Debug log
+      return NextResponse.json({ error: "Authentication failed" }, { status: 401 });
+    }
+
+    console.log("Login successful for user:", authData.user.id); // Debug log
+
+    // Create the response with user data and access token
+    const response = NextResponse.json({
       user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        first_name: user.first_name,
-        last_name: user.last_name,
+        id: authData.user.id,
+        email: authData.user.email,
+        first_name: authData.user.user_metadata?.first_name,
+        last_name: authData.user.user_metadata?.last_name,
+      },
+      session: {
+        access_token: authData.session.access_token,
+        expires_at: authData.session.expires_at,
       },
     });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+
+    // Set the refresh token as an HTTP-only cookie
+    response.cookies.set({
+      name: "refresh_token",
+      value: authData.session.refresh_token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+
+    return response;
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.errors }, { status: 400 });
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Error in login:", err);
+    return NextResponse.json(
+      { error: "Internal server error", details: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }
